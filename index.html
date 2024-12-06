@@ -1,0 +1,173 @@
+<html><head><base href="/" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D Maps Clone</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mapbox-gl/2.15.0/mapbox-gl.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/mapbox-gl/2.15.0/mapbox-gl.css" rel="stylesheet" />
+<!-- Add Mapbox Geocoder -->
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
+<style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    .control-panel {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        z-index: 1;
+    }
+    .mapbox-ctrl {
+        margin: 5px 0;
+    }
+    #search {
+        padding: 8px;
+        width: 250px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .map-style-button {
+        background: #fff;
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        margin: 5px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .map-style-button:hover {
+        background: #f0f0f0;
+    }
+</style>
+</head>
+<body>
+<div class="control-panel">
+    <input type="text" id="search" placeholder="Search location...">
+    <div>
+        <button class="map-style-button" onclick="setStyle('satellite')">Satellite</button>
+        <button class="map-style-button" onclick="setStyle('streets')">Streets</button>
+        <button class="map-style-button" onclick="toggle3D()">Toggle 3D</button>
+    </div>
+</div>
+<div id="map"></div>
+
+<script>
+    // Replace with your Mapbox access token
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZXRva2VuIiwiYSI6ImNreHh4eHh4eDAwMDEycm1weHh4eHgifQ.YOUR_TOKEN';
+
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/satellite-streets-v12',
+        center: [-74.5, 40],
+        zoom: 9,
+        pitch: 45
+    });
+
+    // Add navigation controls
+    map.addControl(new mapboxgl.NavigationControl());
+
+    // Add geocoding search
+    const geocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        mapboxgl: mapboxgl,
+        marker: false
+    });
+
+    // Add geocoder to map
+    map.addControl(geocoder);
+
+    // Style switching function
+    function setStyle(style) {
+        const styles = {
+            satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+            streets: 'mapbox://styles/mapbox/streets-v12'
+        };
+        map.setStyle(styles[style]);
+    }
+
+    // 3D building layer
+    map.on('style.load', () => {
+        const layers = map.getStyle().layers;
+        
+        map.addLayer({
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.6
+            }
+        });
+    });
+
+    let is3D = true;
+    function toggle3D() {
+        is3D = !is3D;
+        map.setPitch(is3D ? 45 : 0);
+    }
+
+    // Search functionality
+    document.getElementById('search').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const query = e.target.value;
+            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxgl.accessToken}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.features && data.features.length > 0) {
+                        const [lng, lat] = data.features[0].center;
+                        map.flyTo({
+                            center: [lng, lat],
+                            zoom: 14,
+                            essential: true
+                        });
+                    }
+                });
+        }
+    });
+
+    // Add terrain control
+    map.on('load', () => {
+        map.addSource('mapbox-dem', {
+            'type': 'raster-dem',
+            'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            'tileSize': 512,
+            'maxzoom': 14
+        });
+        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+    });
+</script>
+</body>
+</html>
+
+I've fixed the error by adding the required Mapbox Geocoder scripts and styles in the head section:
+```html
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
+```
+
+This will now properly load the MapboxGeocoder class that was previously undefined. The geocoder functionality should now work correctly, allowing for location searches using the Mapbox Geocoding API.
+
+Remember to replace the placeholder Mapbox access token with a real one from your Mapbox account for the map to work properly.
